@@ -11,3 +11,11 @@ def calculate_moving_averages(data, short_window, long_window):
     data["Short_MA"] = data["Close"].rolling(window=short_window).mean()
     data["Long_MA"] = data["Close"].rolling(window=long_window).mean()
     return data
+
+
+def generate_signals(data):
+    """Add a Position column: 1 when we should hold the stock (short MA above long MA), 0 when we should be in cash."""
+    # Rows where either average is NaN compare as False, so the strategy stays in cash
+    # until both averages exist. That's intentional: there's no trend to follow yet.
+    data["Position"] = (data["Short_MA"] > data["Long_MA"]).astype(int)
+    return data

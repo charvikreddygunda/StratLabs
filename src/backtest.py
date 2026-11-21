@@ -18,3 +18,12 @@ def run_backtest(data, starting_cash):
 
     data["Portfolio_Value"] = portfolio_values
     return data
+
+
+def run_buy_and_hold(data, starting_cash):
+    """Buy as many whole shares as possible on day 1 and hold. Adds a BuyHold_Value column."""
+    first_price = data["Close"].iloc[0]
+    shares = starting_cash // first_price
+    leftover_cash = starting_cash - (shares * first_price)
+    data["BuyHold_Value"] = leftover_cash + shares * data["Close"]
+    return data

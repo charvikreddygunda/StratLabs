@@ -13,10 +13,19 @@ from strategy import calculate_moving_averages, generate_signals
 SHORT_WINDOW = 20
 LONG_WINDOW = 50
 
-# Shown when you hover over the ⓘ next to each number.
+# Beginners won't know these terms, so each number gets a plain-English hover explanation.
 RETURN_HELP = "How much your money grew or shrank overall. $10,000 becoming $12,000 is a +20% return."
 VOLATILITY_HELP = "How bumpy the ride was. Higher means bigger ups and downs from day to day."
 DRAWDOWN_HELP = "The worst drop from a high point. If your money hit $15,000 and then fell to $12,000, that's -20%."
+
+
+def show_metrics(column, title, values):
+    """Show the three metrics for one approach. Used for both columns so the code isn't repeated."""
+    column.subheader(title)
+    column.metric("Total return", f"{total_return(values):.1%}", help=RETURN_HELP)
+    column.metric("Volatility", f"{annual_volatility(values):.1%}", help=VOLATILITY_HELP)
+    column.metric("Max drawdown", f"{max_drawdown(values):.1%}", help=DRAWDOWN_HELP)
+
 
 st.set_page_config(page_title="StrategyLab", page_icon="📈", layout="wide")
 st.title("📈 StrategyLab")
@@ -61,26 +70,37 @@ run_clicked = st.sidebar.button("Run backtest", type="primary")
 if run_clicked:
     # People might type "aapl" or add a space by accident, so clean it up first.
     ticker = ticker.strip().upper()
+
+    # Each check uses st.stop() to end the page right there, so nothing
+    # below tries to run on bad input.
     if not ticker:
         st.error("Please enter a stock ticker, like AAPL or MSFT.")
         st.stop()
 
-    # st.stop() ends the page right here, so nothing below tries to run on bad data.
     try:
         data = get_stock_data(ticker, start_date, end_date)
     except ValueError as error:
         st.error(str(error))
         st.stop()
 
-    # Only look up the name for "Other" tickers. The popular ones already have a name.
+    # Popular companies already have a nice name from the dropdown. For "Other",
+    # all we have is a ticker like "F", which means nothing to a beginner,
+    # so look up the real name (e.g. "Ford Motor Company") to show in the results.
     if company_name is None:
         company_name = get_company_name(ticker)
 
-    # The backtester only buys whole shares. If you can't afford even one,
-    # it never trades and the results just look broken, so catch it early.
+    # The backtester can only buy whole shares, so if the starting cash is less
+    # than one share's price, it would never buy anything. Both lines would sit flat
+    # and the page would look broken, so stop here and tell the user instead.
     first_price = data["Close"].iloc[0]
     if starting_cash < first_price:
         st.error(f"Starting cash must be at least one share's price (${first_price:,.2f}).")
+        st.stop()
+
+    # The 50-day average needs 50 days of prices before it exists, so with a shorter
+    # range the rule could never trade and some numbers would come out blank.
+    if len(data) <= LONG_WINDOW:
+        st.warning(f"Pick a longer date range. The rule needs more than {LONG_WINDOW} trading days of prices.")
         st.stop()
 
     data = calculate_moving_averages(data, SHORT_WINDOW, LONG_WINDOW)
@@ -106,16 +126,8 @@ if run_clicked:
         st.info(f"Buying and holding ended ${hold_end - strategy_end:,.0f} ahead of following the trend.")
 
     strategy_col, hold_col = st.columns(2)
-    with strategy_col:
-        st.subheader("Follow the trend")
-        st.metric("Total return", f"{total_return(data['Portfolio_Value']):.1%}", help=RETURN_HELP)
-        st.metric("Volatility", f"{annual_volatility(data['Portfolio_Value']):.1%}", help=VOLATILITY_HELP)
-        st.metric("Max drawdown", f"{max_drawdown(data['Portfolio_Value']):.1%}", help=DRAWDOWN_HELP)
-    with hold_col:
-        st.subheader("Buy and hold")
-        st.metric("Total return", f"{total_return(data['BuyHold_Value']):.1%}", help=RETURN_HELP)
-        st.metric("Volatility", f"{annual_volatility(data['BuyHold_Value']):.1%}", help=VOLATILITY_HELP)
-        st.metric("Max drawdown", f"{max_drawdown(data['BuyHold_Value']):.1%}", help=DRAWDOWN_HELP)
+    show_metrics(strategy_col, "Follow the trend", data["Portfolio_Value"])
+    show_metrics(hold_col, "Buy and hold", data["BuyHold_Value"])
 
     st.divider()
     st.subheader(f"{company_name} price and trades")

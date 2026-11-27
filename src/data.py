@@ -12,6 +12,7 @@ def get_stock_data(ticker, start_date, end_date):
         raise ValueError(f"No data found for {ticker} between {start_date} and {end_date}")
     return data
 
+
 # Big companies on the dropdown for beginner users since they wouldn't know tickers.
 POPULAR_COMPANIES = {
     "Apple": "AAPL",
@@ -27,6 +28,7 @@ POPULAR_COMPANIES = {
     "McDonald's": "MCD",
     "Walmart": "WMT",
 }
+
 
 def get_company_name(ticker):
     """Look up a company's full name for display. Falls back to the ticker if the lookup fails."""
